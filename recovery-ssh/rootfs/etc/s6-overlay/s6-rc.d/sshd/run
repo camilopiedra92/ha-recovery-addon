@@ -1,0 +1,7 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Starts the SSH daemon in the foreground.
+# ==============================================================================
+bashio::log.info 'Starting the SSH daemon...'
+exec /usr/sbin/sshd -D -e < /dev/null

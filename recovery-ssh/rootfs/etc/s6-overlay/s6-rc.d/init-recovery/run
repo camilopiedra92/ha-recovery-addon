@@ -1,0 +1,42 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Prepares what sshd needs: the authorized keys from the options, a host key that
+# survives restarts, and the Supervisor token for login sessions.
+# ==============================================================================
+readonly KEYS=/data/authorized_keys
+readonly HOST_KEY=/data/ssh_host_ed25519_key
+
+if bashio::config.is_empty 'authorized_keys'; then
+    bashio::log.fatal 'No authorized key is configured: set at least one ed25519'
+    bashio::log.fatal 'public key in the "authorized_keys" option. Password login'
+    bashio::log.fatal 'does not exist in this app.'
+    bashio::exit.nok
+fi
+
+umask 077
+
+# One key per line, each checked by ssh-keygen: a typo must stop the app here,
+# not leave it running with nobody able to log in.
+: >"${KEYS}"
+while read -r key; do
+    if ! ssh-keygen -l -f <(printf '%s\n' "${key}") >/dev/null 2>&1; then
+        bashio::log.fatal "An entry of authorized_keys is not a valid public key."
+        bashio::exit.nok
+    fi
+    printf '%s\n' "${key}" >>"${KEYS}"
+done < <(bashio::config 'authorized_keys[]')
+bashio::log.info "Authorized keys: $(grep -c . "${KEYS}")"
+
+if [[ ! -f "${HOST_KEY}" ]]; then
+    bashio::log.info 'Generating the SSH host key (first start)...'
+    ssh-keygen -q -t ed25519 -N '' -f "${HOST_KEY}"
+fi
+bashio::log.info "Host key fingerprint: $(ssh-keygen -l -f "${HOST_KEY}.pub")"
+
+# sshd sessions do not inherit the container environment; PermitUserEnvironment
+# lets the `ha` CLI find its token also for one-shot commands.
+mkdir -p /root/.ssh
+chmod 0700 /root/.ssh
+printf 'SUPERVISOR_TOKEN=%s\n' "${SUPERVISOR_TOKEN}" >/root/.ssh/environment
+chmod 0600 /root/.ssh/environment

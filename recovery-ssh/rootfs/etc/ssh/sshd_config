@@ -1,0 +1,38 @@
+# Key-only root SSH for recovery. Hardened after https://www.sshaudit.com/hardening_guides.html
+Port 22
+AddressFamily inet
+HostKey /data/ssh_host_ed25519_key
+AuthorizedKeysFile /data/authorized_keys
+
+PermitRootLogin prohibit-password
+AllowUsers root
+PubkeyAuthentication yes
+PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+HostbasedAuthentication no
+IgnoreRhosts yes
+StrictModes yes
+
+KexAlgorithms sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+
+LoginGraceTime 30
+MaxAuthTries 3
+MaxSessions 4
+MaxStartups 4:30:10
+ClientAliveInterval 300
+ClientAliveCountMax 2
+UseDNS no
+
+DisableForwarding yes
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+PermitTunnel no
+GatewayPorts no
+PermitUserEnvironment SUPERVISOR_TOKEN
+PrintMotd no
+LogLevel VERBOSE
