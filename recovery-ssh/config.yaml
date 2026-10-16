@@ -2,21 +2,24 @@
 name: Recovery SSH
 version: 1.0.0
 slug: recovery_ssh
-description: Key-only SSH shell with Supervisor access, reachable only from the internal network, to recover Home Assistant when Core is down
+description: Key-only SSH shell with Supervisor access, reachable only from the Docker network, to recover Home Assistant when Core is down
 url: https://github.com/camilopiedra92/ha-recovery-addon
 arch:
   - aarch64
 startup: services
 boot: auto
 init: false
-# No `ports` and no host network on purpose: nothing is published on the host.
-# Something on the Docker network (a tunnel, a VPN add-on) has to carry the
-# connection in; see DOCS.md.
+# No `ports` and no host network on purpose: nothing is published on the host, so
+# only apps on the Docker network can reach port 22 (key-only login). Something
+# there (a tunnel, a VPN app) has to carry the connection in; see DOCS.md.
 hassio_api: true
 hassio_role: manager
 map:
   - type: homeassistant_config
     read_only: false
+    # The default mount point is /homeassistant; recovery commands and the
+    # owner's tooling use /config.
+    path: /config
 options:
   authorized_keys: []
 schema:

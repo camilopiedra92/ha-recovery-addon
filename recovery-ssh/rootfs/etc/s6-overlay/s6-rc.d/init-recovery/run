@@ -7,7 +7,13 @@
 readonly KEYS=/data/authorized_keys
 readonly HOST_KEY=/data/ssh_host_ed25519_key
 
-if bashio::config.is_empty 'authorized_keys'; then
+# options.json is read directly: the bashio helper for lists runs the query once
+# per element and would write each key several times.
+keys=()
+while IFS= read -r line; do
+    keys+=("${line}")
+done < <(jq -r '.authorized_keys[]' /data/options.json | tr -d '\r')
+if [[ "${#keys[@]}" -eq 0 ]]; then
     bashio::log.fatal 'No authorized key is configured: set at least one ed25519'
     bashio::log.fatal 'public key in the "authorized_keys" option. Password login'
     bashio::log.fatal 'does not exist in this app.'
@@ -16,17 +22,29 @@ fi
 
 umask 077
 
-# One key per line, each checked by ssh-keygen: a typo must stop the app here,
-# not leave it running with nobody able to log in.
-: >"${KEYS}"
-while read -r key; do
+# Each entry must be a bare ed25519 public key that sshd will actually accept
+# (no options, no other key types): a typo must stop the app here, not leave it
+# running with nobody able to log in. Written to a temporary file and moved into
+# place, so sshd never sees a partial list.
+readonly TMP="${KEYS}.tmp"
+: >"${TMP}"
+for key in "${keys[@]}"; do
+    read -r key_type _ <<<"${key}"
+    case "${key_type}" in
+        ssh-ed25519 | sk-ssh-ed25519@openssh.com) ;;
+        *)
+            bashio::log.fatal 'An entry of authorized_keys is not a bare ed25519 public key.'
+            bashio::exit.nok
+            ;;
+    esac
     if ! ssh-keygen -l -f <(printf '%s\n' "${key}") >/dev/null 2>&1; then
-        bashio::log.fatal "An entry of authorized_keys is not a valid public key."
+        bashio::log.fatal 'An entry of authorized_keys is not a valid public key.'
         bashio::exit.nok
     fi
-    printf '%s\n' "${key}" >>"${KEYS}"
-done < <(bashio::config 'authorized_keys[]')
-bashio::log.info "Authorized keys: $(grep -c . "${KEYS}")"
+    printf '%s\n' "${key}" >>"${TMP}"
+done
+mv -f "${TMP}" "${KEYS}"
+bashio::log.info "Authorized keys: ${#keys[@]}"
 
 if [[ ! -f "${HOST_KEY}" ]]; then
     bashio::log.info 'Generating the SSH host key (first start)...'

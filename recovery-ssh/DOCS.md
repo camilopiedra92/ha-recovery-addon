@@ -11,9 +11,10 @@ authorized_keys:
   - ssh-ed25519 AAAA... owner@laptop
 ```
 
-Public keys only, one per entry, ed25519 (or `sk-ssh-ed25519`). The app refuses
-to start with no key, or with an entry that is not a valid public key. There is
-no password login.
+Public keys only, one per entry, bare ed25519 (`ssh-ed25519` or `sk-ssh-ed25519`)
+with no options in front. The app refuses to start with no key, or with an entry
+that is not one of those, so a typo cannot leave it running with nobody able to
+log in. There is no password login.
 
 ## Reaching it
 
@@ -26,8 +27,15 @@ the key is the second factor, not the only one.
 
 ## What a session can do
 
-`ha` (the Supervisor CLI, as `manager`), `git`, and `/config` read-write. That is
+`ha` (the Supervisor CLI, as `manager`), `git`, and the Home Assistant
+configuration read-write at `/config` (the `path` of the mapping). That is
 enough to read Core's log, restore `/config` to a known commit and restart Core.
+
+## Staying up
+
+If sshd dies, s6 restarts it. If the container itself stops, enable the
+Supervisor's watchdog for this app (Info page, or `watchdog: true` through the
+Supervisor API) so it is started again; `boot: auto` only covers a reboot.
 
 ## Host key
 

@@ -9,6 +9,8 @@ ARG HA_CLI_VERSION=5.5.0
 # sha256 of ha_aarch64 5.5.0, checked against the file downloaded on 2026-10-16.
 ARG HA_CLI_SHA256=af390ab7f91a8135668ace7b1425d8e53800b6a1fc3b36fc588df701d2ab3db5
 
+# DL3018 (pin apk versions) is ignored on purpose: the base image is pinned, and
+# an exact apk pin would break the build the day Alpine drops that revision.
 # hadolint ignore=DL3018
 RUN \
     apk add --no-cache git openssh \
